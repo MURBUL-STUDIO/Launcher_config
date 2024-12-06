@@ -2,6 +2,7 @@ import os
 import shutil
 import stat
 import sys
+import subprocess
 
 def handle_remove_readonly(func, path, exc_info):
     """
@@ -13,16 +14,21 @@ def handle_remove_readonly(func, path, exc_info):
     else:
         raise
 
-def find_folder(folder_name: str, start_path: str = "C:\\") -> str:
+def find_folder_fast(folder_name: str, start_path: str = "C:\\") -> str:
     """
-    Ищет папку с указанным именем на всём компьютере, начиная с указанного пути.
+    Быстрый поиск папки с указанным именем.
     """
-    print(f"Ищем папку {folder_name} во всех директориях...")
+    print(f"Поиск папки: {folder_name}...")
+    for entry in os.scandir(start_path):
+        if entry.is_dir() and entry.name == folder_name:
+            print(f"Папка найдена: {entry.path}")
+            return entry.path
     for root, dirs, _ in os.walk(start_path):
-        if folder_name in dirs:
-            folder_path = os.path.join(root, folder_name)
-            print(f"Папка найдена: {folder_path}")
-            return folder_path
+        for dir_name in dirs:
+            if dir_name == folder_name:
+                folder_path = os.path.join(root, dir_name)
+                print(f"Папка найдена: {folder_path}")
+                return folder_path
     print(f"Папка {folder_name} не найдена.")
     return None
 
@@ -41,36 +47,30 @@ def delete_old_version(old_version_path: str):
         print(f"Ошибка при удалении старой версии: {e}")
         sys.exit(1)
 
-def launch_new_version(new_version_path: str):
+def launch_executable(exe_path: str):
     """
-    Запускает приложение из новой версии.
+    Запускает указанный исполняемый файл.
     """
     try:
-        main_script_path = os.path.join(new_version_path, "main.py")
-        if os.path.exists(main_script_path):
-            print(f"Запускаем новую версию: {main_script_path}")
-            os.system(f"python \"{main_script_path}\"")
+        if os.path.exists(exe_path):
+            print(f"Запускаем исполняемый файл: {exe_path}")
+            subprocess.Popen([exe_path], shell=True)
         else:
-            print(f"Основной файл новой версии не найден: {main_script_path}")
+            print(f"Исполняемый файл не найден: {exe_path}")
             sys.exit(1)
     except Exception as e:
-        print(f"Ошибка при запуске новой версии: {e}")
+        print(f"Ошибка при запуске исполняемого файла: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Названия папок старой и новой версий
+    # Название папки старой версии
     old_version_folder = "MWELauncher 2.0v"
-    new_version_folder = "MWELauncher 3.0v"
+    exe_to_launch = r"C:\Users\Asylbek\Desktop\MWE.exe"
 
-    # Путь новой версии (из текущего рабочего каталога)
-    current_folder = os.path.dirname(os.path.abspath(__file__))
-    new_version_path = os.path.join(current_folder)
+    # Быстрый поиск и удаление старой версии
+    old_version_path = find_folder_fast(old_version_folder)
+    if old_version_path:
+        delete_old_version(old_version_path)
 
-    # Поиск старой версии
-    old_version_path = find_folder(old_version_folder)
-
-    # Удаляем старую версию
-    delete_old_version(old_version_path)
-
-    # Запускаем новую версию
-    launch_new_version(new_version_path)
+    # Запуск новой версии
+    launch_executable(exe_to_launch)

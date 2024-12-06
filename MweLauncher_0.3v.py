@@ -19,16 +19,16 @@ def check_update_file_remote(owner: str, repo: str, file_path: str, branch: str 
     try:
         update_content = get_remote_file_content(owner, repo, file_path, branch)
         if update_content is None:  # Если файл отсутствует
-            print("Файл UPDATE.txt не найден в репозитории.")
+            print("Обновлений нет.")
             return False
         elif update_content.strip():  # Если файл существует и не пуст
-            print("Файл UPDATE.txt найден в репозитории.")
+            print("Загрузка обновлений...")
             return True
         else:  # Если файл пустой
-            print("Файл UPDATE.txt существует, но он пустой.")
+            print("CODE_ERROR: Файл UPDATE.txt существует, но он пустой.")
             return False
     except Exception as e:
-        print(f"Ошибка при проверке файла UPDATE.txt: {e}")
+        print(f"Ошибка при проверке файла UPDATE: {e}")
         return False
 
 def download_file(owner: str, repo: str, branch: str, file_path: str, destination: str):
@@ -50,23 +50,26 @@ def download_file(owner: str, repo: str, branch: str, file_path: str, destinatio
         raise Exception(f"Ошибка при скачивании файла {file_path}: {e}")
 
 def update_application(owner: str, repo: str, branch: str, file_path: str, local_folder: str):
-    """Обновляет приложение: скачивает новый файл и запускает его."""
+    """Обновляет приложение: скачивает новый файл и запускает udconfig.py."""
     try:
         print("Начинаем обновление...")
         parent_folder = os.path.dirname(local_folder)
         temp_folder = os.path.join(parent_folder, "MWELauncher3.0v")
 
         # Скачиваем файл
-        downloaded_file = download_file(owner, repo, branch, file_path, temp_folder)
+        download_file(owner, repo, branch, file_path, temp_folder)
 
-        # Запускаем обновленный код с флагом "skip_update_check"
-        print(f"Запускаем {downloaded_file} для завершения обновления...")
-        subprocess.Popen(["python", downloaded_file, "--skip-update-check"])
+        # Запускаем udconfig.py
+        udconfig_path = r"C:\Users\Asylbek\Desktop\MWE\udconfig.py"
+        if os.path.exists(udconfig_path):
+            print(f"Запускаем {udconfig_path}...")
+            subprocess.Popen(["python", udconfig_path])
+        else:
+            print(f"Ошибка: Файл {udconfig_path} не найден. Обновление завершено без запуска.")
 
-        # Завершаем текущий процесс
-        print("Обновление завершено. Выход из текущей программы.")
+        # Закрываем текущую программу
+        print("Обновление завершено. Программа будет закрыта.")
         sys.exit()
-
     except Exception as e:
         print(f"Ошибка при обновлении: {e}")
         sys.exit(1)
@@ -74,25 +77,20 @@ def update_application(owner: str, repo: str, branch: str, file_path: str, local
 # Параметры для обновления
 local_folder = r"C:\Users\Asylbek\Desktop\MWELauncher 3.0v"
 owner = "MURBUL-STUDIO"
-repo = "m4bfsuehsbrshwglsgkjrghsrh4r2e44"
+repo = "Launcher_config"
 update_file_path = "UPDATE.txt"
 branch = "main"
 testfile_path = "MweLauncher_0.3v.py"
 
 # Проверяем аргументы командной строки
-skip_update_check = "--skip-update-check" in sys.argv
+print("Запуск программы...")
+has_update = check_update_file_remote(owner, repo, update_file_path, branch)
 
-if not skip_update_check:
-    print("Запуск программы...")
-    has_update = check_update_file_remote(owner, repo, update_file_path, branch)
-
-    if has_update:
-        print("Обновление доступно. Начинаем процесс обновления.")
-        update_application(owner, repo, branch, testfile_path, local_folder)
-    else:
-        print("Обновлений не найдено. Переход к меню.")
+if has_update:
+    print("Обновление доступно. Скачиваем...")
+    update_application(owner, repo, branch, testfile_path, local_folder)
 else:
-    print("Пропуск проверки обновлений (запущено с флагом --skip-update-check).")
+    print("Обновлений не найдено.")
 
 # Цикл с действиями
 while True:
@@ -120,4 +118,4 @@ while True:
         sys.exit()
 
     else:
-        print("Ошибка: неверное действие")
+        print("Ошибка-1: Неверное действие")
