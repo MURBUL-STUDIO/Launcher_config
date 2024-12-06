@@ -2,6 +2,9 @@ import os
 import requests
 import sys
 import subprocess
+import zipfile
+import shutil
+import winreg
 
 def get_remote_file_content(owner: str, repo: str, file_path: str, branch: str = "main") -> str:
     """Получает содержимое файла с GitHub."""
@@ -49,30 +52,82 @@ def download_file(owner: str, repo: str, branch: str, file_path: str, destinatio
     except Exception as e:
         raise Exception(f"Ошибка при скачивании файла {file_path}: {e}")
 
-def update_application(owner: str, repo: str, branch: str, file_path: str, local_folder: str):
-    """Обновляет приложение: скачивает новый файл и запускает udconfig.py."""
+def download_and_extract_zip(url: str, extract_to: str):
+    """Скачивает ZIP-архив и разархивирует его."""
+    zip_path = os.path.join(extract_to, "x64.zip")
+    download_file_from_url(url, zip_path)
     try:
-        print("Начинаем обновление...")
-        parent_folder = os.path.dirname(local_folder)
-        temp_folder = os.path.join(parent_folder, "MWELauncher3.0v")
-
-        # Скачиваем файл
-        download_file(owner, repo, branch, file_path, temp_folder)
-
-        # Запускаем udconfig.py
-        udconfig_path = r"C:\Users\Asylbek\Desktop\MWE\udconfig.py"
-        if os.path.exists(udconfig_path):
-            print(f"Запускаем {udconfig_path}...")
-            subprocess.Popen(["python", udconfig_path])
-        else:
-            print(f"Ошибка: Файл {udconfig_path} не найден. Обновление завершено без запуска.")
-
-        # Закрываем текущую программу
-        print("Обновление завершено. Программа будет закрыта.")
-        sys.exit()
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+        print(f"Архив разархивирован в {extract_to}")
     except Exception as e:
-        print(f"Ошибка при обновлении: {e}")
+        print(f"Ошибка при разархивировании архива: {e}")
         sys.exit(1)
+
+def download_file_from_url(url: str, destination: str):
+    """Скачивает файл по URL."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Проверка на ошибки при скачивании
+        with open(destination, 'wb') as file:
+            file.write(response.content)
+        print(f"Файл скачан: {destination}")
+    except Exception as e:
+        print(f"Ошибка при скачивании файла: {e}")
+        sys.exit(1)
+
+def replace_system_files(extracted_folder: str):
+    """Заменяет файлы Windows.ApplicationModel.Store.dll в системных папках."""
+    try:
+        # Пути к папкам System32 и SysWOW64
+        system32_path = r"C:\Windows\System32"
+        syswow64_path = r"C:\Windows\SysWOW64"
+        
+        # Пути к новым файлам
+        dll_file_name = "Windows.ApplicationModel.Store.dll"
+        extracted_system32_path = os.path.join(extracted_folder, "System32", dll_file_name)
+        extracted_syswow64_path = os.path.join(extracted_folder, "SysWOW64", dll_file_name)
+
+        # Заменяем файлы в папках System32 и SysWOW64
+        if os.path.exists(extracted_system32_path):
+            shutil.copy(extracted_system32_path, os.path.join(system32_path, dll_file_name))
+            print(f"Заменен файл в {system32_path}")
+
+        if os.path.exists(extracted_syswow64_path):
+            shutil.copy(extracted_syswow64_path, os.path.join(syswow64_path, dll_file_name))
+            print(f"Заменен файл в {syswow64_path}")
+
+    except Exception as e:
+        print(f"Ошибка при замене файлов: {e}")
+        sys.exit(1)
+
+def add_to_startup(file_path: str):
+    """Добавляет программу в автозагрузку Windows."""
+    try:
+        key = winreg.HKEY_CURRENT_USER
+        subkey = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        app_name = "MWE.exe"
+
+        with winreg.OpenKey(key, subkey, 0, winreg.KEY_SET_VALUE) as registry_key:
+            winreg.SetValueEx(registry_key, app_name, 0, winreg.REG_SZ, file_path)
+        print(f"Программа добавлена в автозагрузку: {file_path}")
+    except Exception as e:
+        print(f"Ошибка при добавлении в автозагрузку: {e}")
+
+def remove_from_startup():
+    """Удаляет программу из автозагрузки Windows."""
+    try:
+        key = winreg.HKEY_CURRENT_USER
+        subkey = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        app_name = "MWE.exe"
+
+        with winreg.OpenKey(key, subkey, 0, winreg.KEY_SET_VALUE) as registry_key:
+            winreg.DeleteValue(registry_key, app_name)
+        print("Программа удалена из автозагрузки.")
+    except FileNotFoundError:
+        print("Программа не найдена в автозагрузке.")
+    except Exception as e:
+        print(f"Ошибка при удалении из автозагрузки: {e}")
 
 # Параметры для обновления
 local_folder = r"C:\Users\Asylbek\Desktop\MWELauncher 3.0v"
@@ -82,7 +137,7 @@ update_file_path = "UPDATE.txt"
 branch = "main"
 testfile_path = "MweLauncher_0.3v.py"
 
-# Проверяем аргументы командной строки
+# Проверка наличия обновлений
 print("Запуск программы...")
 has_update = check_update_file_remote(owner, repo, update_file_path, branch)
 
@@ -93,26 +148,47 @@ else:
     print("Обновлений не найдено.")
 
 # Цикл с действиями
+exe_path = r"C:\Users\Asylbek\Desktop\MWE.exe"
+
 while True:
     print("\nМеню:")
-    print("2. Действие 2")
-    print("3. Действие 3")
-    print("4. Действие 4")
-    print("5. Действие 5")
+    print("1. Download Minecraft Windows Edition")
+    print("2. Settings")
+    print("3. About Us")
     print("Чтобы выйти, введите: exit")
     action = input("Выберите действие: ")
 
-    if action == "2":
-        print("Выполняется действие 2")
+    if action == "1":
+        print("Скачиваем и разархивируем архив Minecraft Windows Edition...")
+        # Скачиваем и разархивируем архив
+        download_and_extract_zip("https://example.com/x64.rar", r"C:\Users\Asylbek\Desktop\x64")
+        # Заменяем файлы в системе
+        replace_system_files(r"C:\Users\Asylbek\Desktop\x64")
+        print("Файлы заменены.")
+
+    elif action == "2":
+        print("""Settings:
+        Run MWE Launcher when Windows starts: mwe-runwin / for OFF: mwe-stopwin.
+        """)
+        sub_action = input("Введите команду: ")
+        if sub_action == "mwe-runwin":
+            add_to_startup(exe_path)
+        elif sub_action == "mwe-stopwin":
+            remove_from_startup()
+        else:
+            print("Ошибка: Неверная команда.")
 
     elif action == "3":
-        print("Выполняется действие 3")
+        print("""About Us:  
+        Created by: MURBUL   
+        Version: 0.3-alpha
+        """)
 
-    elif action == "4":
-        print("Выполняется действие 4")
+    elif action == "mwe-runwin":
+        add_to_startup(exe_path)
 
-    elif action == "5":
-        print("Выполняется действие 5")
+    elif action == "mwe-stopwin":
+        remove_from_startup()
 
     elif action == "exit":
         sys.exit()
