@@ -51,7 +51,7 @@ We are committed to ensuring the security of our software and systems. If you ha
 
 - **If Declined**:  
   - You will receive an explanation as to why the vulnerability does not meet the criteria for action (e.g., expected behavior, non-exploitable).
-  - And i will found ####YOU
+  - And i will found YOU
 
 #### Responsible Disclosure  
 We kindly ask you to:  
